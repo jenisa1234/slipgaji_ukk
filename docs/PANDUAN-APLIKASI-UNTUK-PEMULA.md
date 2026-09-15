@@ -203,6 +203,28 @@ flowchart TD
 
 ---
 
+### Cara Membaca Contoh Kode di Panduan
+
+Setiap contoh kode di bawah selalu memiliki tiga informasi:
+
+1. **File**: lokasi kode sebenarnya di project.
+2. **Bagian kode**: nama method, route, atau bagian Blade/JavaScript.
+3. **Kode**: potongan yang sama dengan kode project.
+
+Contoh:
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** method `index()`
+
+```php
+$karyawan = Karyawan::orderBy('id', 'desc')->get();
+return view('karyawan.index', compact('karyawan'));
+```
+
+Artinya kode tersebut mencari data karyawan, lalu mengirimnya ke file [resources/views/karyawan/index.blade.php](../resources/views/karyawan/index.blade.php). Jadi ketika menemukan nama method atau potongan kode di panduan, buka file yang tertulis tepat di atas contoh.
+
+---
+
 ## 6. Route dan URL
 
 File utama route adalah [routes/web.php](../routes/web.php).
@@ -422,6 +444,7 @@ Struktur efektif tabel karyawan:
 | `nama` | Nama karyawan |
 | `jabatan` | Jabatan karyawan |
 | `periode_bulan` | Nomor bulan periode yang dipilih, 1 sampai 12 |
+| `periode_tahun` | Tahun periode yang dipilih |
 | `tanggal_awal` | Awal periode, dihitung otomatis |
 | `tanggal_akhir` | Akhir periode, dihitung otomatis |
 | `no_whatsapp` | Nomor WhatsApp, boleh kosong |
@@ -445,6 +468,7 @@ File penting:
 - [2026_09_14_131000_make_optional_karyawan_fields_nullable.php](../database/migrations/2026_09_14_131000_make_optional_karyawan_fields_nullable.php) membuat email dan WhatsApp boleh kosong.
 - [2026_09_15_000000_add_periode_to_karyawans_table.php](../database/migrations/2026_09_15_000000_add_periode_to_karyawans_table.php) menambahkan `tanggal_awal` dan `tanggal_akhir`.
 - [2026_09_15_010000_add_periode_bulan_to_karyawans_table.php](../database/migrations/2026_09_15_010000_add_periode_bulan_to_karyawans_table.php) menambahkan kolom `periode_bulan` untuk menyimpan bulan yang dipilih.
+- [2026_09_15_020000_add_periode_tahun_to_karyawans_table.php](../database/migrations/2026_09_15_020000_add_periode_tahun_to_karyawans_table.php) menambahkan kolom `periode_tahun` untuk menyimpan tahun yang dipilih.
 
 ### Seeder karyawan
 
@@ -1476,12 +1500,15 @@ Aplikasi ini mengikuti pola Laravel yang umum: route menerima URL, controller me
 
 ## 30. Periode Gaji Otomatis
 
-Form karyawan tidak lagi meminta tanggal awal dan tanggal akhir satu per satu. User cukup memilih bulan dari `periode_bulan`.
+Sebelum form tambah karyawan ditampilkan, halaman [resources/views/karyawan/create.blade.php](../resources/views/karyawan/create.blade.php) membuka popup **Pilih Periode**. User memilih bulan dan tahun terlebih dahulu, lalu menekan **Lanjut Isi Form**. Setelah itu form tampil dan periode muncul di bawah judul slip.
+
+Tanggal gajian tetap mengikuti tanggal 25 dari pengaturan `PAYDAY_DAY`. User hanya memilih bulan dan tahun; tanggal awal dan akhir tidak diisi manual.
 
 Contoh pilihan:
 
 ```text
 periode_bulan = 9
+periode_tahun = 2026
 PAYDAY_DAY = 25
 tahun berjalan = 2026
 ```
@@ -1545,10 +1572,11 @@ Jika tanggal yang diatur lebih besar dari jumlah hari dalam bulan, controller me
 
 ## 31. Mengapa Periode Disimpan dalam Tiga Kolom?
 
-`periode_bulan` menyimpan pilihan asli user, sedangkan `tanggal_awal` dan `tanggal_akhir` menyimpan hasil perhitungan.
+`periode_bulan` dan `periode_tahun` menyimpan pilihan asli user, sedangkan `tanggal_awal` dan `tanggal_akhir` menyimpan hasil perhitungan.
 
 ```text
 periode_bulan = 9
+periode_tahun = 2026
 tanggal_awal  = 2026-08-25
 tanggal_akhir = 2026-09-25
 ```
@@ -1693,3 +1721,276 @@ Sebelum menulis kode, tentukan dulu:
 8. Apakah nilai rahasia masuk `.env`, bukan ditulis di source code?
 
 Dengan checklist ini, perubahan tidak berhenti di tampilan saja. Form, controller, database, dan semua output tetap memakai nama field dan aturan yang sama.
+
+## 38. Kode Asli dan Lokasi Setiap Fitur
+
+Bagian ini adalah peta cepat agar penjelasan langsung bisa dicocokkan dengan source code.
+
+### A. Halaman login
+
+**File:** [resources/views/auth/login.blade.php](../resources/views/auth/login.blade.php)  
+**Bagian:** form login
+
+```blade
+<form method="POST" action="{{ route('login.process') }}">
+    @csrf
+```
+
+**File:** [app/Http/Controllers/AuthController.php](../app/Http/Controllers/AuthController.php)  
+**Bagian:** method `login()`
+
+```php
+$credentials = $request->validate([
+    'email' => ['required', 'email'],
+    'password' => ['required'],
+]);
+
+if (Auth::attempt($credentials, $remember)) {
+    $request->session()->regenerate();
+    return redirect()->intended('/karyawan');
+}
+```
+
+Form mengirim email dan password ke route `login.process`. Controller memvalidasi, mencocokkan password dengan hash database, membuat session login, lalu membuka halaman karyawan.
+
+### B. Route halaman karyawan
+
+**File:** [routes/web.php](../routes/web.php)  
+**Bagian:** group route yang membutuhkan login
+
+```php
+Route::middleware('auth')->group(function () {
+    Route::resource('karyawan', KaryawanController::class);
+});
+```
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** method `index()`
+
+```php
+$karyawan = Karyawan::orderBy('id', 'desc')->get();
+return view('karyawan.index', compact('karyawan'));
+```
+
+`middleware('auth')` menyaring user yang belum login. `Route::resource()` membuat route CRUD, kemudian `index()` mengambil data dan mengirimnya ke view.
+
+### C. Form tambah karyawan
+
+**File:** [resources/views/karyawan/create.blade.php](../resources/views/karyawan/create.blade.php)  
+**Bagian:** form dan field utama
+
+```blade
+<form action="{{ route('karyawan.store') }}" method="POST">
+    @csrf
+    <input type="text" name="nama" ...>
+    <input type="text" name="nik" ...>
+    <select name="periode_bulan" id="periode_bulan" required>
+```
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** method `store()`
+
+```php
+$request->validate([
+    'nik' => 'required|string|max:20|unique:karyawans,nik',
+    'nama' => 'required|string|max:100',
+    'jabatan' => 'required|string|max:50',
+    'periode_bulan' => 'required|integer|between:1,12',
+]);
+```
+
+Nama `name="periode_bulan"` harus sama dengan key `'periode_bulan'` di controller. Jika berbeda, controller tidak menerima nilai yang diharapkan.
+
+### D. Hitung gaji
+
+**File:** [resources/views/karyawan/create.blade.php](../resources/views/karyawan/create.blade.php) dan [resources/views/karyawan/edit.blade.php](../resources/views/karyawan/edit.blade.php)  
+**Bagian:** JavaScript `hitung()`
+
+```javascript
+const penghasilan = valGaji + valLembur;
+const potongan = valPinjaman;
+const bersih = penghasilan - potongan;
+gajiBersih.value = bersih;
+```
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** method `store()` dan `update()`
+
+```php
+$gajiPokok = (float) $request->input('gaji_pokok', 0);
+$lembur = (float) $request->input('lembur', 0);
+$pinjaman = (float) $request->input('pinjaman', 0);
+$gajiBersih = ($gajiPokok + $lembur) - $pinjaman;
+```
+
+JavaScript hanya memberi preview cepat. Controller menghitung ulang karena data dari browser dapat diubah dan tidak boleh dipercaya sebagai sumber akhir.
+
+### E. Periode otomatis
+
+**File:** [config/ui.php](../config/ui.php)  
+**Bagian:** konfigurasi tanggal gajian
+
+```php
+'payday_day' => env('PAYDAY_DAY', 25),
+```
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** method `hitungPeriode()`
+
+```php
+$tanggalAkhir = Carbon::create($tahun, $bulan, 1)
+    ->setDay($tanggalGajian);
+$tanggalAwal = $tanggalAkhir->copy()->subMonthNoOverflow();
+```
+
+**File:** [resources/views/karyawan/create.blade.php](../resources/views/karyawan/create.blade.php)  
+**Bagian:** popup `Pilih Periode`
+
+```blade
+<select id="pilih_bulan">
+    <option value="9">September</option>
+</select>
+<select id="pilih_tahun">
+    <option value="2026">2026</option>
+</select>
+<input type="hidden" name="periode_bulan" id="periode_bulan">
+<input type="hidden" name="periode_tahun" id="periode_tahun">
+```
+
+September dikirim sebagai angka `9` dan tahun dikirim sebagai `2026`, lalu controller memakai Carbon untuk menghasilkan tanggal akhir dan mengurangi satu bulan untuk tanggal awal. Preview popup dibuat oleh JavaScript di view, tetapi controller tetap menghitung ulang tanggal di server agar hasil tidak bergantung pada browser.
+
+### F. Penyimpanan database
+
+**File:** [app/Models/Karyawan.php](../app/Models/Karyawan.php)  
+**Bagian:** konfigurasi model
+
+```php
+protected $table = 'karyawans';
+protected $guarded = [];
+```
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** `Karyawan::create()`
+
+```php
+Karyawan::create([
+    'nik' => $request->nik,
+    'nama' => $request->nama,
+    'periode_bulan' => $request->periode_bulan,
+    'tanggal_awal' => $periode['tanggal_awal'],
+    'tanggal_akhir' => $periode['tanggal_akhir'],
+    'gaji_bersih' => $gajiBersih,
+]);
+```
+
+**File:** [database/migrations/2026_09_15_010000_add_periode_bulan_to_karyawans_table.php](../database/migrations/2026_09_15_010000_add_periode_bulan_to_karyawans_table.php)  
+**Bagian:** method `up()`
+
+```php
+$table->unsignedTinyInteger('periode_bulan')->nullable()->after('jabatan');
+```
+
+Model menghubungkan controller ke tabel. Migration membuat kolom tabel. Karena itu migration harus dijalankan sebelum kode `Karyawan::create()` mengirim `periode_bulan`.
+
+### G. Slip browser dan PDF
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** method `slip()` dan `cetakSlip()`
+
+```php
+$karyawan = Karyawan::findOrFail($id);
+return view('karyawan.slip', compact('karyawan'));
+
+$pdf = Pdf::loadView('karyawan.pdf', compact('karyawan'))
+    ->setPaper('a4', 'portrait');
+return $pdf->stream($fileName);
+```
+
+**File:** [resources/views/karyawan/slip.blade.php](../resources/views/karyawan/slip.blade.php)  
+**Bagian:** format periode
+
+```blade
+{{ strtoupper($tanggalAwal->translatedFormat('d F Y')) }}
+```
+
+**File:** [resources/views/karyawan/pdf.blade.php](../resources/views/karyawan/pdf.blade.php)  
+**Bagian:** template dokumen PDF
+
+View slip adalah halaman HTML biasa. View PDF adalah template khusus yang diberikan ke Dompdf. Keduanya membaca data karyawan yang sama.
+
+### H. Captcha
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** method `createCaptcha()`
+
+```php
+$left = random_int(2, 9);
+$right = random_int(2, 9);
+$request->session()->put('karyawan_captcha_answer', $left * $right);
+```
+
+**Bagian:** validasi di method `store()` dan `update()`
+
+```php
+if ((int) $value !== (int) $request->session()->get('karyawan_captcha_answer')) {
+    $fail('Jawaban captcha salah.');
+}
+```
+
+Soal terlihat di Blade, tetapi jawaban disimpan di session server. Karena itu user tidak dapat melewati validasi hanya dengan mengubah HTML.
+
+### I. WhatsApp dan Gmail
+
+**File:** [resources/views/karyawan/index.blade.php](../resources/views/karyawan/index.blade.php) dan [resources/views/karyawan/slip.blade.php](../resources/views/karyawan/slip.blade.php)  
+**Bagian:** JavaScript tombol berbagi
+
+```javascript
+const url = `https://wa.me/${nomor}?text=${encodeURIComponent(pesan)}`;
+window.open(url, '_blank');
+```
+
+Untuk Gmail, JavaScript membuat URL `mail.google.com` dengan parameter `to`, `su`, dan `body`. Browser membuka aplikasi Gmail, sehingga user tetap menekan tombol kirim. Ini berbeda dengan email backend Laravel yang menggunakan `Mail::to()`.
+
+### J. Email backend
+
+**File:** [app/Http/Controllers/KaryawanController.php](../app/Http/Controllers/KaryawanController.php)  
+**Bagian:** method `kirimEmail()`
+
+```php
+$pdf = Pdf::loadView('karyawan.pdf', compact('karyawan'));
+$pdfContent = $pdf->output();
+Mail::to($tujuanEmail)->send(new SlipGajiMail($karyawan, $pdfContent));
+```
+
+**File:** [app/Mail/SlipGajiMail.php](../app/Mail/SlipGajiMail.php)  
+**Bagian:** method `attachments()`
+
+```php
+Attachment::fromData(fn () => $this->pdfContent, $fileName)
+    ->withMime('application/pdf');
+```
+
+PDF dibuat di memory, lalu ditempelkan sebagai attachment. Jika `.env` memakai `MAIL_MAILER=log`, hasil email dicatat ke log dan tidak dikirim ke inbox sungguhan.
+
+### K. Reset password
+
+**File:** [app/Http/Controllers/ForgotPasswordController.php](../app/Http/Controllers/ForgotPasswordController.php)  
+**Bagian:** membuat kode
+
+```php
+$code = (string) random_int(100000, 999999);
+$user->notify(new ResetPasswordNotification($code));
+```
+
+**File:** [app/Http/Controllers/ResetPasswordController.php](../app/Http/Controllers/ResetPasswordController.php)  
+**Bagian:** memeriksa kode
+
+```php
+$resetToken = DB::table('password_reset_tokens')
+    ->where('email', $email)
+    ->where('token', $validated['code'])
+    ->where('created_at', '>=', now()->subMinutes(15))
+    ->first();
+```
+
+Kode dibuat di controller pertama, dikirim oleh notification, lalu diperiksa controller kedua. Tiga file tersebut bekerja bersama, bukan berdiri sendiri.

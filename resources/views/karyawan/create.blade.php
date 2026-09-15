@@ -3,10 +3,19 @@
 @section('title', 'Tambah Karyawan')
 
 @section('content')
-<div class="card border-0 shadow-sm rounded-3 bg-white p-4">
+@php
+    $formSiap = old('periode_bulan') || $errors->any();
+    $namaBulan = [1 => 'JAN', 2 => 'FEB', 3 => 'MAR', 4 => 'APR', 5 => 'MEI', 6 => 'JUN', 7 => 'JUL', 8 => 'AGU', 9 => 'SEP', 10 => 'OKT', 11 => 'NOV', 12 => 'DES'];
+@endphp
+
+<div id="form-karyawan" class="card border-0 shadow-sm rounded-3 bg-white p-4" @if (!$formSiap) hidden @endif>
     <!-- Header Slip -->
     <div class="text-center mb-4">
         <h4 class="fw-bold m-0 text-dark">{{ strtoupper(config('ui.page.slip', 'SLIP GAJI KARYAWAN')) }}</h4>
+        <div class="mt-2 fw-bold text-primary" id="periode-terpilih">
+            PERIODE {{ $namaBulan[(int) $periodeBulan] ?? 'JAN' }}
+        </div>
+        <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 mt-1" id="ubah-periode">Ubah Periode</button>
     </div>
 
     @if (isset($errors) && $errors->any())
@@ -45,18 +54,8 @@
                 </div>
             </div>
 
-            <div class="row align-items-center mb-2">
-                <label for="periode_bulan" class="col-sm-2 col-form-label fw-bold text-dark">PERIODE GAJI</label>
-                <div class="col-sm-4">
-                    <select name="periode_bulan" id="periode_bulan" class="form-select border-orange" required>
-                        <option value="">Pilih bulan</option>
-                        @foreach ([1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'] as $nomorBulan => $namaBulan)
-                            <option value="{{ $nomorBulan }}" @selected((int) $periodeBulan === $nomorBulan)>{{ $namaBulan }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-sm-6 small text-muted">Tanggal periode akan dihitung otomatis berdasarkan pengaturan tanggal gajian.</div>
-            </div>
+            <input type="hidden" name="periode_bulan" id="periode_bulan" value="{{ $periodeBulan }}" required>
+            <input type="hidden" name="periode_tahun" id="periode_tahun" value="{{ $periodeTahun }}" required>
         </div>
 
         <!-- Section Header Penghasilan & Potongan -->
@@ -131,7 +130,45 @@
     </form>
 </div>
 
+<div class="modal fade show d-block" id="periodeModal" tabindex="-1" aria-modal="true" role="dialog" @if ($formSiap) hidden @endif>
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Pilih Periode</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Tentukan bulan dan tahun slip gaji. Tanggal gajian otomatis setiap tanggal {{ config('ui.payday_day', 25) }}.</p>
+                <label for="pilih_bulan" class="form-label fw-semibold">Bulan</label>
+                <select id="pilih_bulan" class="form-select border-orange mb-3">
+                    @foreach ([1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'] as $nomorBulan => $namaBulanPilihan)
+                        <option value="{{ $nomorBulan }}" @selected((int) $periodeBulan === $nomorBulan)>{{ $namaBulanPilihan }}</option>
+                    @endforeach
+                </select>
+                <label for="pilih_tahun" class="form-label fw-semibold">Tahun</label>
+                <select id="pilih_tahun" class="form-select border-orange">
+                    @for ($tahun = now()->year - 1; $tahun <= now()->year + 5; $tahun++)
+                        <option value="{{ $tahun }}" @selected((int) $periodeTahun === $tahun)>{{ $tahun }}</option>
+                    @endfor
+                </select>
+                <div class="alert alert-light border mt-3 mb-0 small">
+                    Periode: <strong id="preview-periode"></strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{{ route('karyawan.index') }}" class="btn btn-outline-secondary">Batal</a>
+                <button type="button" class="btn text-white" id="simpan-periode" style="background-color: #032b30;">Lanjut Isi Form</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show" id="periodeBackdrop" @if ($formSiap) hidden @endif></div>
+
 <style>
+    #form-karyawan {
+        position: relative;
+        z-index: 1061;
+    }
+
     .border-orange {
         border: 1.5px solid #ff8c32 !important;
         border-radius: 6px;
@@ -139,6 +176,10 @@
     .border-orange:focus {
         border-color: #e06c14 !important;
         box-shadow: 0 0 0 0.2rem rgba(255, 140, 50, 0.25) !important;
+    }
+    #periodeModal .modal-content {
+        position: relative;
+        z-index: 1060;
     }
 </style>
 
@@ -152,6 +193,54 @@
         const totalPenghasilan = document.getElementById('total_penghasilan');
         const totalPotongan = document.getElementById('total_potongan');
         const gajiBersih = document.getElementById('gaji_bersih');
+        const periodeBulan = document.getElementById('periode_bulan');
+        const periodeTahun = document.getElementById('periode_tahun');
+        const pilihBulan = document.getElementById('pilih_bulan');
+        const pilihTahun = document.getElementById('pilih_tahun');
+        const periodeModal = document.getElementById('periodeModal');
+        const periodeBackdrop = document.getElementById('periodeBackdrop');
+        const formKaryawan = document.getElementById('form-karyawan');
+        const namaBulan = @json($namaBulan);
+
+        function formatPeriode() {
+            const bulan = parseInt(pilihBulan.value, 10);
+            const tahun = parseInt(pilihTahun.value, 10);
+            const tanggalAkhir = new Date(tahun, bulan - 1, 25);
+            const tanggalAwal = new Date(tahun, bulan - 2, 25);
+            const teks = `25 ${namaBulan[tanggalAwal.getMonth() + 1]} - 25 ${namaBulan[tanggalAkhir.getMonth() + 1]} ${tanggalAkhir.getFullYear()}`;
+            document.getElementById('preview-periode').textContent = teks;
+            document.getElementById('periode-terpilih').textContent = `PERIODE ${teks}`;
+        }
+
+        function bukaPopupPeriode() {
+            periodeModal.hidden = false;
+            periodeModal.classList.add('show');
+            periodeBackdrop.hidden = false;
+            document.body.classList.add('modal-open');
+        }
+
+        function tutupPopupPeriode() {
+            periodeModal.hidden = true;
+            periodeModal.classList.remove('show');
+            periodeBackdrop.hidden = true;
+            document.body.classList.remove('modal-open');
+            formKaryawan.hidden = false;
+            formKaryawan.classList.remove('d-none');
+            document.getElementById('nama').focus();
+        }
+
+        pilihBulan.value = periodeBulan.value;
+        pilihTahun.value = periodeTahun.value;
+        formatPeriode();
+        pilihBulan.addEventListener('change', formatPeriode);
+        pilihTahun.addEventListener('change', formatPeriode);
+        document.getElementById('ubah-periode').addEventListener('click', bukaPopupPeriode);
+        document.getElementById('simpan-periode').addEventListener('click', function () {
+            periodeBulan.value = pilihBulan.value;
+            periodeTahun.value = pilihTahun.value;
+            formatPeriode();
+            tutupPopupPeriode();
+        });
 
         function hitung() {
             const valGaji = parseFloat(gajiPokok.value) || 0;

@@ -3,12 +3,21 @@
 @section('title', 'Edit Karyawan')
 
 @section('content')
+@php
+    $namaBulanPeriode = [1 => 'JAN', 2 => 'FEB', 3 => 'MAR', 4 => 'APR', 5 => 'MEI', 6 => 'JUN', 7 => 'JUL', 8 => 'AGU', 9 => 'SEP', 10 => 'OKT', 11 => 'NOV', 12 => 'DES'];
+    $tanggalAwalPeriode = $karyawan->tanggal_awal ? \Carbon\Carbon::parse($karyawan->tanggal_awal) : null;
+    $tanggalAkhirPeriode = $karyawan->tanggal_akhir ? \Carbon\Carbon::parse($karyawan->tanggal_akhir) : null;
+    $periodeTampil = $tanggalAwalPeriode && $tanggalAkhirPeriode
+        ? $tanggalAwalPeriode->format('d') . ' ' . ($namaBulanPeriode[$tanggalAwalPeriode->month] ?? '') . ' - ' . $tanggalAkhirPeriode->format('d') . ' ' . ($namaBulanPeriode[$tanggalAkhirPeriode->month] ?? '') . ' ' . $tanggalAkhirPeriode->year
+        : '-';
+@endphp
 <div class="card border-0 shadow-sm rounded-3 bg-white p-4">
     <!-- Header Edit -->
     <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
         <div>
             <h4 class="fw-bold m-0 text-dark">{{ strtoupper(config('ui.page.edit', 'EDIT DATA KARYAWAN & SLIP GAJI')) }}</h4>
             <small class="text-muted fw-semibold">PERBARUI INFORMASI KARYAWAN DAN DETAIL GAJI</small>
+            <div class="mt-2 fw-bold text-primary">PERIODE {{ $periodeTampil }}</div>
         </div>
         <a href="{{ route('karyawan.index') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i> Kembali
@@ -28,6 +37,7 @@
     <form action="{{ route('karyawan.update', $karyawan->id) }}" method="POST">
         @csrf
         @method('PUT')
+        <input type="hidden" name="periode_tahun" value="{{ $periodeTahun }}">
 
         <!-- Data Utama Karyawan -->
         <div class="form-karyawan-group mb-4">
@@ -52,18 +62,7 @@
                 </div>
             </div>
 
-            <div class="row align-items-center mb-2">
-                <label for="periode_bulan" class="col-sm-2 col-form-label fw-bold text-dark">PERIODE GAJI</label>
-                <div class="col-sm-4">
-                    <select name="periode_bulan" id="periode_bulan" class="form-select border-orange" required>
-                        <option value="">Pilih bulan</option>
-                        @foreach ([1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'] as $nomorBulan => $namaBulan)
-                            <option value="{{ $nomorBulan }}" @selected((int) $periodeBulan === $nomorBulan)>{{ $namaBulan }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-sm-6 small text-muted">Tanggal periode akan dihitung otomatis berdasarkan pengaturan tanggal gajian.</div>
-            </div>
+            <input type="hidden" name="periode_bulan" value="{{ $periodeBulan }}">
         </div>
 
         <!-- Section Header Penghasilan & Potongan -->

@@ -29,8 +29,9 @@ class KaryawanController extends Controller
     {
         $captcha = $this->createCaptcha(request());
         $periodeBulan = old('periode_bulan', now()->month);
+        $periodeTahun = old('periode_tahun', now()->year);
 
-        return view('karyawan.create', compact('captcha', 'periodeBulan'));
+        return view('karyawan.create', compact('captcha', 'periodeBulan', 'periodeTahun'));
     }
 
     /**
@@ -44,6 +45,7 @@ class KaryawanController extends Controller
             'nama'          => 'required|string|max:100',
             'jabatan'       => 'required|string|max:50',
             'periode_bulan' => 'required|integer|between:1,12',
+            'periode_tahun' => 'required|integer|between:2000,2100',
             'gaji_pokok'    => 'required|numeric|min:0',
             'lembur'        => 'nullable|numeric|min:0',
             'pinjaman'      => 'nullable|numeric|min:0',
@@ -58,6 +60,7 @@ class KaryawanController extends Controller
             'nama.required'    => 'Nama karyawan wajib diisi.',
             'jabatan.required' => 'Jabatan karyawan wajib diisi.',
             'periode_bulan.required' => 'Bulan periode wajib dipilih.',
+            'periode_tahun.required' => 'Tahun periode wajib dipilih.',
         ]);
 
         // 2. Olah Nilai
@@ -65,7 +68,7 @@ class KaryawanController extends Controller
         $lembur     = (float) $request->input('lembur', 0);
         $pinjaman   = (float) $request->input('pinjaman', 0);
         $gajiBersih = ($gajiPokok + $lembur) - $pinjaman;
-        $periode = $this->hitungPeriode((int) $request->input('periode_bulan'));
+        $periode = $this->hitungPeriode((int) $request->input('periode_bulan'), (int) $request->input('periode_tahun'));
 
         // 3. Simpan ke Database
         Karyawan::create([
@@ -73,6 +76,7 @@ class KaryawanController extends Controller
             'nama'        => $request->nama,
             'jabatan'     => $request->jabatan,
             'periode_bulan' => $request->periode_bulan,
+            'periode_tahun' => $request->periode_tahun,
             'tanggal_awal' => $periode['tanggal_awal'],
             'tanggal_akhir' => $periode['tanggal_akhir'],
             'gaji_pokok'  => $gajiPokok,
@@ -94,8 +98,9 @@ class KaryawanController extends Controller
         $karyawan = Karyawan::findOrFail($id);
         $captcha = $this->createCaptcha(request());
         $periodeBulan = old('periode_bulan', $karyawan->periode_bulan ?? ($karyawan->tanggal_akhir ? Carbon::parse($karyawan->tanggal_akhir)->month : now()->month));
+        $periodeTahun = old('periode_tahun', $karyawan->periode_tahun ?? ($karyawan->tanggal_akhir ? Carbon::parse($karyawan->tanggal_akhir)->year : now()->year));
 
-        return view('karyawan.edit', compact('karyawan', 'captcha', 'periodeBulan'));
+        return view('karyawan.edit', compact('karyawan', 'captcha', 'periodeBulan', 'periodeTahun'));
     }
 
     /**
@@ -110,6 +115,7 @@ class KaryawanController extends Controller
             'nama'          => 'required|string|max:100',
             'jabatan'       => 'required|string|max:50',
             'periode_bulan' => 'required|integer|between:1,12',
+            'periode_tahun' => 'required|integer|between:2000,2100',
             'gaji_pokok'    => 'required|numeric|min:0',
             'lembur'        => 'nullable|numeric|min:0',
             'pinjaman'      => 'nullable|numeric|min:0',
@@ -124,19 +130,21 @@ class KaryawanController extends Controller
             'nama.required'    => 'Nama karyawan wajib diisi.',
             'jabatan.required' => 'Jabatan wajib diisi.',
             'periode_bulan.required' => 'Bulan periode wajib dipilih.',
+            'periode_tahun.required' => 'Tahun periode wajib dipilih.',
         ]);
 
         $gajiPokok  = (float) $request->input('gaji_pokok', 0);
         $lembur     = (float) $request->input('lembur', 0);
         $pinjaman   = (float) $request->input('pinjaman', 0);
         $gajiBersih = ($gajiPokok + $lembur) - $pinjaman;
-        $periode = $this->hitungPeriode((int) $request->input('periode_bulan'));
+        $periode = $this->hitungPeriode((int) $request->input('periode_bulan'), (int) $request->input('periode_tahun'));
 
         $karyawan->update([
             'nik'         => $request->nik,
             'nama'        => $request->nama,
             'jabatan'     => $request->jabatan,
             'periode_bulan' => $request->periode_bulan,
+            'periode_tahun' => $request->periode_tahun,
             'tanggal_awal' => $periode['tanggal_awal'],
             'tanggal_akhir' => $periode['tanggal_akhir'],
             'gaji_pokok'  => $gajiPokok,
@@ -164,9 +172,8 @@ class KaryawanController extends Controller
         return $question;
     }
 
-    private function hitungPeriode(int $bulan): array
+    private function hitungPeriode(int $bulan, int $tahun): array
     {
-        $tahun = now()->year;
         $tanggalGajian = max(1, min((int) config('ui.payday_day', 25), 31));
         $tanggalAkhir = Carbon::create($tahun, $bulan, 1)->setDay(min($tanggalGajian, Carbon::create($tahun, $bulan, 1)->daysInMonth));
         $tanggalAwal = $tanggalAkhir->copy()->subMonthNoOverflow();
