@@ -1,0 +1,50 @@
+<?php
+
+return [
+    'app_name' => env('APP_NAME', 'Slip Gaji'),
+    'default_user' => env('APP_DEFAULT_USER', 'Pengguna'),
+    'payday_day' => env('PAYDAY_DAY', 25),
+    'page' => [
+        'dashboard' => env('APP_PAGE_DASHBOARD', 'Data Karyawan'),
+        'create' => env('APP_PAGE_CREATE', 'Tambah Karyawan'),
+        'edit' => env('APP_PAGE_EDIT', 'Edit Karyawan'),
+        'slip' => env('APP_PAGE_SLIP', 'Slip Gaji Karyawan'),
+    ],
+    'button' => [
+        'add' => env('APP_BUTTON_ADD', 'Tambah Karyawan'),
+        'cancel' => env('APP_BUTTON_CANCEL', 'Batal'),
+        'submit' => env('APP_BUTTON_SUBMIT', 'Submit'),
+        'save_changes' => env('APP_BUTTON_SAVE_CHANGES', 'Simpan Perubahan'),
+        'back' => env('APP_BUTTON_BACK', 'Kembali'),
+        'login' => env('APP_BUTTON_LOGIN', 'LOGIN'),
+        'forgot_password' => env('APP_BUTTON_FORGOT_PASSWORD', 'Kirim Link Reset'),
+        'reset_password' => env('APP_BUTTON_RESET_PASSWORD', 'Simpan Password Baru'),
+    ],
+    'auth' => [
+        'login_title' => env('APP_AUTH_LOGIN_TITLE', 'Login'),
+        'login_subtitle' => env('APP_AUTH_LOGIN_SUBTITLE', 'Sistem Slip Gaji'),
+        'forgot_title' => env('APP_AUTH_FORGOT_TITLE', 'Lupa Password'),
+        'forgot_subtitle' => env('APP_AUTH_FORGOT_SUBTITLE', 'Masukkan email akun Anda'),
+        'reset_title' => env('APP_AUTH_RESET_TITLE', 'Reset Password'),
+        'reset_subtitle' => env('APP_AUTH_RESET_SUBTITLE', 'Buat password baru untuk akun Anda'),
+        'remember_me' => env('APP_AUTH_REMEMBER_ME', 'Remember me'),
+        'forgot_link' => env('APP_AUTH_FORGOT_LINK', 'Forgot Password?'),
+        'back_to_login' => env('APP_AUTH_BACK_TO_LOGIN', 'Kembali ke Login'),
+        'footer_credit' => env('APP_AUTH_FOOTER_CREDIT', 'UKK Junior Web Programmer © 2026'),
+    ],
+    'email' => [
+        'sender_name' => env('MAIL_FROM_NAME', 'Slip Gaji'),
+        'subject_prefix' => env('APP_EMAIL_SUBJECT_PREFIX', 'Slip Gaji Karyawan'),
+        'footer_auto' => env('APP_EMAIL_FOOTER_AUTO', 'Email ini dikirim secara otomatis oleh Sistem Slip Gaji.'),
+    ],
+    'messages' => [
+        'empty_table' => env('APP_MESSAGE_EMPTY_TABLE', 'Belum ada data karyawan. Sila tambahkan data baru.'),
+        'confirm_delete' => env('APP_MESSAGE_CONFIRM_DELETE', 'Yakin ingin menghapus data karyawan :name?'),
+        'email_preview_label' => env('APP_MESSAGE_EMAIL_PREVIEW', 'Preview Isi Email:'),
+        'wa_preview_label' => env('APP_MESSAGE_WA_PREVIEW', 'Preview Pesan Slip Gaji:'),
+        'success_create' => env('APP_MESSAGE_SUCCESS_CREATE', 'Data karyawan berhasil ditambahkan!'),
+        'success_update' => env('APP_MESSAGE_SUCCESS_UPDATE', 'Data karyawan :name berhasil diperbarui!'),
+        'success_delete' => env('APP_MESSAGE_SUCCESS_DELETE', 'Data karyawan :name berhasil dihapus!'),
+        'success_email' => env('APP_MESSAGE_SUCCESS_EMAIL', 'Slip gaji berhasil dikirimkan ke email: :email'),
+    ],
+];
